@@ -1,0 +1,24 @@
+# InputTranslator 项目依赖
+# 全局快捷键监听
+pynput>=1.7.6
+
+# 剪贴板操作
+pyperclip>=1.8.2
+
+# HTTP请求（调用ollama API）
+requests>=2.31.0
+
+# 系统托盘应用
+pystray>=0.19.4
+
+# 图像处理（托盘图标）
+Pillow>=10.0.0
+
+# Windows系统API调用
+psutil>=5.9.0
+
+# 键盘和鼠标控制
+pyautogui>=0.9.54
+
+# 打包工具（用于构建exe）
+pyinstaller>=5.13.0

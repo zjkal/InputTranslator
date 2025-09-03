@@ -1,0 +1,8 @@
+/.trae
+/.idea
+/.venv
+/build
+/dist
+/logs
+config.json
+inputTranslator.spec
