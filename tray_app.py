@@ -204,7 +204,7 @@ class SettingsWindow:
     
     def _reset_hotkey(self):
         """重置快捷键为默认值"""
-        self.hotkey_var.set("ctrl+shift+t")
+        self.hotkey_var.set("ctrl+alt+q")
     
     def _test_connection(self):
         """测试Ollama连接"""
@@ -479,6 +479,7 @@ class TrayApp:
         # 停止托盘图标
         if self.icon:
             self.icon.stop()
+            self.icon = None
     
 
     
@@ -501,6 +502,7 @@ class TrayApp:
             
             # 运行托盘图标（这会阻塞当前线程）
             self.icon.run()
+            self.is_running = False
             return True
         except Exception as e:
             logger.exception(f"启动托盘应用失败: {e}")

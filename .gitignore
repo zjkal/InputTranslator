@@ -6,3 +6,4 @@
 /logs
 config.json
 inputTranslator.spec
+__pycache__

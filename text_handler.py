@@ -197,12 +197,12 @@ class TextHandler:
         return self.smart_translate()
 
     def smart_translate(self) -> bool:
-        """智能翻译：优先选中文本，其次光标附近文本，最后才尝试整框翻译"""
+        """智能翻译：优先选中文本，未选中时自动全选整个输入框翻译"""
         try:
             text_sources = [
                 ("选中文本", self.get_selected_text),
-                ("光标附近文本", self.get_text_at_cursor),
                 ("整个输入框", self.get_all_text),
+                ("光标附近文本", self.get_text_at_cursor),
             ]
 
             text_to_translate = None

@@ -237,20 +237,13 @@ def main():
             logger.error("启动快捷键监听失败")
             return False
         
-        # 启动托盘应用
+        # 启动托盘应用。pystray 的 run() 会阻塞，直到用户从托盘菜单退出。
         if not tray_app.start():
             logger.error("启动托盘应用失败")
             return False
         
-        logger.info("托盘应用启动成功")
-        
-        # 保持程序运行
-        try:
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            logger.info("用户中断程序")
-            cleanup_and_exit()
+        logger.info("托盘应用已退出，开始清理资源")
+        cleanup_and_exit()
             
     except Exception as e:
         logger.exception(f"程序运行时发生错误: {e}")

@@ -39,7 +39,7 @@ class Config:
             默认配置字典
         """
         return {
-            "hotkey": "ctrl+shift+q",
+            "hotkey": "ctrl+alt+q",
             "ollama_url": "http://localhost:11434",
             "ollama_model": "translategemma:latest",
             "auto_start": False,
@@ -94,7 +94,7 @@ class Config:
         Returns:
             快捷键字符串
         """
-        return self.config_data.get("hotkey", "ctrl+shift+q")
+        return self.config_data.get("hotkey", "ctrl+alt+q")
     
     def set_hotkey(self, hotkey: str) -> None:
         """设置快捷键配置
