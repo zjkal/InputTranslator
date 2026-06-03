@@ -39,9 +39,9 @@ class Config:
             默认配置字典
         """
         return {
-            "hotkey": "ctrl+shift+a",
+            "hotkey": "ctrl+shift+q",
             "ollama_url": "http://localhost:11434",
-            "ollama_model": "qwen2.5:latest",
+            "ollama_model": "translategemma:latest",
             "auto_start": False,
             "translation_prompt": "请将以下中文翻译成英文, 只返回翻译结果, 不要添加任何解释, 注意符合欧美英文的使用习惯:",
             "window_title": "InputTranslator",
@@ -89,7 +89,12 @@ class Config:
         Returns:
             快捷键字符串
         """
-        return self.config_data.get("hotkey", "ctrl+shift+t")
+        """获取快捷键配置
+        
+        Returns:
+            快捷键字符串
+        """
+        return self.config_data.get("hotkey", "ctrl+shift+q")
     
     def set_hotkey(self, hotkey: str) -> None:
         """设置快捷键配置
@@ -123,7 +128,7 @@ class Config:
         Returns:
             模型名称
         """
-        return self.config_data.get("ollama_model", "qwen2.5:7b")
+        return self.config_data.get("ollama_model", "translategemma:latest")
     
     def set_ollama_model(self, model: str) -> None:
         """设置Ollama模型名称
