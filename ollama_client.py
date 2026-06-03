@@ -4,10 +4,11 @@ Ollama客户端模块
 负责与本地Ollama服务通信，调用AI模型进行翻译
 """
 
-import requests
 import json
 import time
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
+
+import requests
 from config import config
 from logger import logger, log_exception
 
@@ -63,21 +64,27 @@ class OllamaClient:
                 return self.model in available_models
             return False
         except Exception as e:
-            print(f"检查模型可用性失败: {e}")
+            logger.error(f"检查模型可用性失败: {e}")
             return False
     
     @log_exception
     def translate_text(self, chinese_text: str) -> Optional[str]:
+        """兼容旧接口，仅返回翻译结果"""
+        translated_text, _ = self.translate_with_status(chinese_text)
+        return translated_text
+
+    @log_exception
+    def translate_with_status(self, chinese_text: str) -> Tuple[Optional[str], str]:
         """翻译中文文本为英文
         
         Args:
             chinese_text: 待翻译的中文文本
             
         Returns:
-            翻译后的英文文本，失败时返回None
+            翻译结果和对应状态消息
         """
         if not chinese_text or not chinese_text.strip():
-            return None
+            return None, "待翻译文本为空"
         
         try:
             # 构建翻译提示词
@@ -119,24 +126,54 @@ class OllamaClient:
                 
                 if translated_text:
                     logger.info(f"翻译成功，响应长度: {len(translated_text)}")
-                    return translated_text
+                    return translated_text, "翻译成功"
                 else:
                     logger.error("翻译结果为空")
-                    return None
+                    return None, "模型返回了空结果，请重试。"
             else:
-                logger.error(f"翻译请求失败，状态码: {response.status_code}")
+                error_message = self._build_response_error_message(response)
+                logger.error(error_message)
                 logger.error(f"响应内容: {response.text[:200]}")
-                return None
+                return None, error_message
                 
         except requests.exceptions.Timeout:
             logger.error("翻译请求超时")
-            return None
+            return None, "翻译请求超时，请稍后重试。"
         except requests.exceptions.ConnectionError:
             logger.error("无法连接到Ollama服务")
-            return None
+            return None, f"无法连接到 Ollama 服务，请确认 {self.base_url} 已启动。"
+        except requests.exceptions.RequestException as e:
+            logger.exception(f"翻译请求异常: {e}")
+            return None, f"翻译请求失败: {e}"
         except Exception as e:
             logger.exception(f"翻译过程中发生错误: {e}")
-            return None
+            return None, f"翻译过程中发生错误: {e}"
+
+    def _build_response_error_message(self, response: requests.Response) -> str:
+        """根据 HTTP 响应生成更可操作的错误提示"""
+        error_text = ""
+
+        try:
+            response_data = response.json()
+            error_text = response_data.get("error") or response_data.get("message") or ""
+            if not error_text and response_data:
+                error_text = json.dumps(response_data, ensure_ascii=False)[:200]
+        except ValueError:
+            error_text = response.text[:200].strip()
+
+        lowered_error = error_text.lower()
+        if response.status_code == 404:
+            if "model" in lowered_error or "not found" in lowered_error:
+                return f"模型 {self.model} 不可用，请先在 Ollama 中拉取该模型。"
+            return "Ollama 接口不可用，请检查服务地址配置。"
+
+        if response.status_code >= 500:
+            return "Ollama 服务异常，请稍后重试。"
+
+        if error_text:
+            return f"翻译失败: {error_text}"
+
+        return f"翻译失败，状态码: {response.status_code}"
     
     def _post_process_translation(self, text: str) -> str:
         """后处理翻译结果
@@ -190,7 +227,7 @@ class OllamaClient:
                 return response.json()
             return None
         except Exception as e:
-            print(f"获取模型信息失败: {e}")
+            logger.error(f"获取模型信息失败: {e}")
             return None
     
     def update_config(self) -> None:

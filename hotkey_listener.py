@@ -8,7 +8,6 @@ import threading
 import time
 from typing import Callable, Optional
 from pynput import keyboard
-from pynput.keyboard import Key, KeyCode
 from config import config
 from text_handler import text_handler
 from logger import logger, log_exception
@@ -21,10 +20,12 @@ class HotkeyListener:
         """初始化快捷键监听器"""
         self.listener: Optional[keyboard.GlobalHotKeys] = None
         self.is_running = False
+        self.is_translating = False
         self.hotkey_string = config.get_hotkey()
         self.callback_func: Optional[Callable] = None
         self.last_trigger_time = 0
         self.min_trigger_interval = 1.0  # 最小触发间隔（秒），防止重复触发
+        self.translation_lock = threading.Lock()
         logger.info("快捷键监听器初始化完成")
     
     def _parse_hotkey(self, hotkey_string: str) -> str:
@@ -66,6 +67,11 @@ class HotkeyListener:
         # 防止重复触发
         if current_time - self.last_trigger_time < self.min_trigger_interval:
             return
+
+        if self.is_translating:
+            logger.info("上一条翻译尚未完成，忽略本次触发")
+            self._notify_user("上一条翻译仍在进行中，请稍候。", "InputTranslator")
+            return
         
         self.last_trigger_time = current_time
         
@@ -87,27 +93,61 @@ class HotkeyListener:
             self._execute_translation()
         except Exception as e:
             logger.exception(f"翻译执行失败: {e}")
+
+    def _notify_user(self, message: str, title: str = "InputTranslator") -> None:
+        """通过托盘通知向用户反馈状态"""
+        try:
+            from tray_app import tray_app
+            tray_app.notify(message, title)
+        except Exception as exc:
+            logger.warning(f"发送用户通知失败: {exc}")
+            logger.info(f"{title}: {message}")
+
+    def _set_tray_status(self, status_text: Optional[str] = None) -> None:
+        """更新托盘提示文本"""
+        try:
+            from tray_app import tray_app
+            tray_app.set_status(status_text)
+        except Exception as exc:
+            logger.warning(f"更新托盘状态失败: {exc}")
     
     def _execute_translation(self):
         """执行翻译操作"""
+        if not self.translation_lock.acquire(blocking=False):
+            self._notify_user("上一条翻译仍在进行中，请稍候。", "InputTranslator")
+            return
+
+        self.is_translating = True
+
         try:
             # 短暂延迟，确保快捷键释放
             time.sleep(0.1)
+            self._set_tray_status("正在翻译")
+            self._notify_user("正在翻译，请稍候...", "InputTranslator")
             
             # 执行智能翻译
             success = text_handler.smart_translate()
-            
+            result = text_handler.get_last_result()
+            message = result.get("message", "翻译已结束")
+
             if success:
-                print("翻译完成")
+                logger.info(message)
+                self._notify_user(message, "翻译完成")
             else:
-                print("翻译失败")
+                logger.warning(message)
+                self._notify_user(message, "翻译失败")
                 
             # 如果有自定义回调函数，调用它
             if self.callback_func:
                 self.callback_func(success)
                 
         except Exception as e:
-            print(f"执行翻译时发生错误: {e}")
+            logger.exception(f"执行翻译时发生错误: {e}")
+            self._notify_user(f"执行翻译时发生错误: {e}", "翻译失败")
+        finally:
+            self.is_translating = False
+            self.translation_lock.release()
+            self._set_tray_status(None)
     
     @log_exception
     def start_listening(self, callback: Optional[Callable] = None) -> bool:
@@ -128,7 +168,7 @@ class HotkeyListener:
             
             # 解析快捷键
             parsed_hotkey = self._parse_hotkey(self.hotkey_string)
-            print(f"开始监听快捷键: {self.hotkey_string} ({parsed_hotkey})")
+            logger.info(f"开始监听快捷键: {self.hotkey_string} ({parsed_hotkey})")
             
             # 创建快捷键映射
             hotkey_mapping = {
@@ -212,7 +252,7 @@ class HotkeyListener:
             return self.restart_listening(new_hotkey)
             
         except Exception as e:
-            print(f"更新快捷键失败: {e}")
+            logger.error(f"更新快捷键失败: {e}")
             return False
     
     def get_current_hotkey(self) -> str:
@@ -250,7 +290,7 @@ class HotkeyListener:
             
             return True
         except Exception as e:
-            print(f"快捷键格式无效: {e}")
+            logger.error(f"快捷键格式无效: {e}")
             return False
     
     def get_status(self) -> dict:

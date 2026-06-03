@@ -7,9 +7,11 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 import threading
+from typing import Optional
 import pystray
 from PIL import Image, ImageDraw
 from config import config
+from logger import logger
 from ollama_client import ollama_client
 
 
@@ -327,6 +329,35 @@ class TrayApp:
         self.icon = None
         self.settings_window = SettingsWindow()
         self.is_running = False
+
+    def notify(self, message: str, title: str = "InputTranslator") -> None:
+        """发送托盘通知，托盘未就绪时退化为日志"""
+        normalized_message = " ".join(str(message).split())
+        if not normalized_message:
+            return
+
+        try:
+            if self.icon and hasattr(self.icon, "notify"):
+                self.icon.notify(normalized_message, title)
+            else:
+                logger.info(f"{title}: {normalized_message}")
+        except Exception as exc:
+            logger.warning(f"发送托盘通知失败: {exc}")
+            logger.info(f"{title}: {normalized_message}")
+
+    def set_status(self, status_text: Optional[str] = None) -> None:
+        """临时更新托盘悬停提示，反馈当前翻译状态"""
+        if not self.icon:
+            return
+
+        tooltip = config.get_tray_tooltip()
+        if status_text:
+            tooltip = f"{tooltip} - {status_text}"
+
+        try:
+            self.icon.title = tooltip
+        except Exception as exc:
+            logger.warning(f"更新托盘提示失败: {exc}")
     
     def _create_icon_image(self) -> Image.Image:
         """创建托盘图标
@@ -401,14 +432,11 @@ class TrayApp:
                 status_msg += f"模型: {ollama_status['model']}\n"
                 status_msg += f"连接状态: {'正常' if ollama_status['connected'] else '失败'}\n"
                 status_msg += f"模型状态: {'可用' if ollama_status['model_available'] else '不可用'}"
-                
-                # 使用简单的print输出，避免GUI线程问题
-                print("=== 状态信息 ===")
-                print(status_msg)
-                print("===============")
-                
+
+                self.notify(status_msg, "当前状态")
             except Exception as e:
-                print(f"获取状态失败: {e}")
+                logger.error(f"获取状态失败: {e}")
+                self.notify(f"获取状态失败: {e}", "状态异常")
         
         threading.Thread(target=show_status_dialog, daemon=True).start()
     
@@ -416,27 +444,28 @@ class TrayApp:
         """测试翻译功能"""
         def test():
             try:
-                print("开始翻译测试...")
+                self.notify("正在测试翻译能力...", "InputTranslator")
                 # 测试翻译一个简单的中文句子
                 test_text = "你好世界"
-                result = ollama_client.translate_text(test_text)
+                result, message = ollama_client.translate_with_status(test_text)
                 
                 if result:
-                    message = f"翻译测试成功！\n原文: {test_text}\n译文: {result}"
-                    print("=== 翻译测试结果 ===")
-                    print(message)
-                    print("==================")
+                    notify_message = f"翻译测试成功。原文: {test_text} 译文: {result}"
+                    logger.info(notify_message)
+                    self.notify(notify_message, "测试翻译")
                 else:
-                    print("翻译测试失败，请检查Ollama服务和模型配置")
+                    logger.warning(f"翻译测试失败: {message}")
+                    self.notify(message, "测试翻译失败")
                 
             except Exception as e:
-                print(f"翻译测试失败: {e}")
+                logger.exception(f"翻译测试失败: {e}")
+                self.notify(f"翻译测试失败: {e}", "测试翻译失败")
         
         threading.Thread(target=test, daemon=True).start()
     
     def _quit_app(self, icon=None, item=None):
         """退出应用"""
-        print("正在退出应用...")
+        logger.info("正在退出应用...")
         
         self.is_running = False
         
@@ -468,14 +497,15 @@ class TrayApp:
             )
             
             self.is_running = True
-            print("托盘应用启动成功")
+            logger.info("托盘应用启动成功")
             
             # 运行托盘图标（这会阻塞当前线程）
             self.icon.run()
-            
+            return True
         except Exception as e:
-            print(f"启动托盘应用失败: {e}")
+            logger.exception(f"启动托盘应用失败: {e}")
             self.is_running = False
+            return False
     
     def stop(self):
         """停止托盘应用"""
