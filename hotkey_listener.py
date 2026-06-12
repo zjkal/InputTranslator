@@ -132,7 +132,6 @@ class HotkeyListener:
 
             if success:
                 logger.info(message)
-                self._notify_user(message, "翻译完成")
             else:
                 logger.warning(message)
                 self._notify_user(message, "翻译失败")

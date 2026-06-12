@@ -4,6 +4,7 @@
 负责系统托盘图标显示和设置界面
 """
 
+import os
 import tkinter as tk
 from tkinter import ttk, messagebox
 import threading
@@ -28,16 +29,13 @@ class SettingsWindow:
         self.status_label = None
     
     def show(self):
-        """显示设置窗口"""
-        # 使用线程安全的方式显示窗口
-        print("设置窗口请求已接收")
-        print("由于线程安全限制，设置功能暂时通过控制台显示")
-        print("当前配置:")
-        print(f"  快捷键: {config.get_hotkey()}")
-        print(f"  Ollama地址: {config.get_ollama_url()}")
-        print(f"  模型: {config.get_ollama_model()}")
-        print(f"  自启动: {config.get_auto_start()}")
-        print("如需修改配置，请直接编辑config.json文件")
+        """使用系统默认程序打开配置文件"""
+        config_path = config.config_file
+        if not os.path.exists(config_path):
+            config.save_config()
+
+        logger.info(f"打开配置文件: {config_path}")
+        os.startfile(config_path)
     
     def _create_window(self):
         """创建设置窗口"""
@@ -413,9 +411,12 @@ class TrayApp:
         )
     
     def _show_settings(self, icon=None, item=None):
-        """显示设置窗口"""
-        # 在主线程中显示设置窗口
-        threading.Thread(target=self.settings_window.show, daemon=True).start()
+        """使用默认程序打开配置文件"""
+        try:
+            self.settings_window.show()
+        except Exception as exc:
+            logger.exception(f"打开配置文件失败: {exc}")
+            self.notify(f"打开配置文件失败: {exc}", "设置")
     
     def _show_status(self, icon=None, item=None):
         """显示状态信息"""
@@ -437,7 +438,8 @@ class TrayApp:
             except Exception as e:
                 logger.error(f"获取状态失败: {e}")
                 self.notify(f"获取状态失败: {e}", "状态异常")
-        
+
+        self.notify("正在获取状态，请稍候...", "当前状态")
         threading.Thread(target=show_status_dialog, daemon=True).start()
     
     def _test_translation(self, icon=None, item=None):
