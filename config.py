@@ -43,7 +43,7 @@ class Config:
             "ollama_url": "http://localhost:11434",
             "ollama_model": "translategemma:latest",
             "auto_start": False,
-            "translation_prompt": "请将以下中文翻译成英文, 只返回翻译结果, 不要添加任何解释, 注意符合欧美英文的使用习惯:",
+            "translation_prompt": "You are a professional English native translator who needs to fluently translate text into English. Output translation only, the original text is as follows:",
             "window_title": "InputTranslator",
             "tray_tooltip": "InputTranslator - 中英文翻译工具",
             "enable_logging": True

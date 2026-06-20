@@ -241,7 +241,7 @@ def main():
         print("2. 确保本地Ollama服务正在运行")
         print("3. 双击运行exe文件")
         print("4. 程序将在系统托盘中运行")
-        print("5. 使用Ctrl+Shift+T快捷键进行翻译")
+        print("5. 使用Ctrl+Shift+Q快捷键进行翻译")
         print("6. 如遇问题，可查看 logs/ 目录中的日志文件")
     else:
         print("\n❌ 构建失败，请检查错误信息")
